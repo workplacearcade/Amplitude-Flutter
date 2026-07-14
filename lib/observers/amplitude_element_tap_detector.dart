@@ -82,7 +82,9 @@ String? defaultScreenNameProvider() =>
 /// position and reports the deepest interactive widget hit. Concrete
 /// controls (buttons, tiles, toggles) take precedence over the generic
 /// gesture handlers they are built from, so an `ElevatedButton` is reported
-/// as `ElevatedButton`, not as its internal `InkWell`.
+/// as `ElevatedButton`, not as its internal `InkWell`. Mounted-but-hidden
+/// subtrees (`Offstage`, invisible `Visibility`, and therefore the inactive
+/// children of a keep-alive `IndexedStack`) are never reported.
 ///
 /// Reported properties:
 /// * `[Amplitude] Action` — always `touch`.
@@ -199,6 +201,19 @@ class _AmplitudeElementTapDetectorState
     var bestRank = 0;
 
     void visit(Element element) {
+      // Mounted-but-hidden subtrees keep real geometry but are not painted,
+      // so they must never claim a tap over the visible widget the user
+      // actually saw. This covers keep-alive tab bodies — IndexedStack wraps
+      // inactive children in Visibility.maintain(visible: false) and its
+      // render object hit-tests only the active child — and Offstage widgets
+      // (which keep their incoming size under tight constraints).
+      final w = element.widget;
+      if (w is Visibility && !w.visible) {
+        return;
+      }
+      if (w is Offstage && w.offstage) {
+        return;
+      }
       final renderObject = element.renderObject;
       if (renderObject is RenderBox) {
         if (!renderObject.attached || !renderObject.hasSize) {
@@ -210,9 +225,9 @@ class _AmplitudeElementTapDetectorState
       }
       // Non-box render objects (slivers) and elements with no render object
       // are descended into without pruning.
-      final rank = _targetRank(element.widget);
+      final rank = _targetRank(w);
       if (rank > 0) {
-        if (!(widget.targetFilter?.call(element.widget) ?? true)) {
+        if (!(widget.targetFilter?.call(w) ?? true)) {
           return; // Vetoed: exclude this widget and its internals entirely.
         }
         if (rank >= bestRank) {
