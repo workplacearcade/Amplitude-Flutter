@@ -208,6 +208,101 @@ void main() {
           'save-button');
     });
 
+    testWidgets('only the active IndexedStack child is reported',
+        (tester) async {
+      // Keep-alive tabs: IndexedStack lays out ALL children at full size but
+      // paints and hit-tests only the active one. A hidden tab's button
+      // occupying the same coordinates must never claim the tap.
+      final amplitude = buildAmplitude();
+      Widget tab(String label) => Center(
+            child: SizedBox(
+              width: 200,
+              height: 80,
+              child: ElevatedButton(onPressed: () {}, child: Text(label)),
+            ),
+          );
+      await tester.pumpWidget(wrap(
+        amplitude,
+        SizedBox(
+          width: 300,
+          height: 300,
+          child: IndexedStack(index: 0, children: [tab('Tab A'), tab('Tab B')]),
+        ),
+      ));
+
+      await tester.tap(find.text('Tab A'));
+      await tester.pump();
+
+      expect(capturedEventProperties()[elementTargetTextProperty], 'Tab A');
+    });
+
+    testWidgets('switching the IndexedStack index reports the new active tab',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      Widget tab(String label) => Center(
+            child: SizedBox(
+              width: 200,
+              height: 80,
+              child: ElevatedButton(onPressed: () {}, child: Text(label)),
+            ),
+          );
+      Widget build(int index) => wrap(
+            amplitude,
+            SizedBox(
+              width: 300,
+              height: 300,
+              child: IndexedStack(
+                  index: index, children: [tab('Tab A'), tab('Tab B')]),
+            ),
+          );
+
+      await tester.pumpWidget(build(1));
+      await tester.tap(find.text('Tab B'));
+      await tester.pump();
+
+      expect(capturedEventProperties()[elementTargetTextProperty], 'Tab B');
+    });
+
+    testWidgets('an invisible Visibility.maintain subtree is not reported',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        Visibility.maintain(
+          visible: false,
+          child: ElevatedButton(onPressed: () {}, child: const Text('Ghost')),
+        ),
+      ));
+
+      await tester.tapAt(tester.getCenter(find.text('Ghost')));
+      await tester.pump();
+
+      verifyNever(mockChannel.invokeMethod('track', any));
+    });
+
+    testWidgets('an Offstage subtree is not reported', (tester) async {
+      // Under tight constraints an offstage RenderBox keeps its full size, so
+      // geometric containment alone would not prune it.
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        SizedBox(
+          width: 200,
+          height: 200,
+          child: Offstage(
+            child:
+                ElevatedButton(onPressed: () {}, child: const Text('Offstage')),
+          ),
+        ),
+      ));
+
+      await tester
+          .tapAt(tester.getCenter(find.text('Offstage', skipOffstage: false)));
+      await tester.pump();
+
+      verifyNever(mockChannel.invokeMethod('track', any));
+    });
+
     testWidgets('taps on non-interactive widgets are not tracked',
         (tester) async {
       final amplitude = buildAmplitude();
