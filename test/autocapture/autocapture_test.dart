@@ -139,7 +139,11 @@ void main() {
       expect(map['screenViews'], true);
       expect(map['formInteractions'], true);
       expect(map['fileDownloads'], true);
-      expect(map['elementInteractions'], true);
+      // Enabled applies the Flutter-aware allowlist rather than a bare `true`.
+      expect(map['elementInteractions'], {
+        'cssSelectorAllowlist':
+            ElementInteractionsOptions.defaultCssSelectorAllowlist,
+      });
       expect(map['pageUrlEnrichment'], true);
     });
   });

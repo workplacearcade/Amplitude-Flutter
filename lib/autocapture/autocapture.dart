@@ -294,7 +294,11 @@ class AutocaptureEnabled extends Autocapture {
       'screenViews': screenViews,
       'formInteractions': formInteractions,
       'fileDownloads': fileDownloads,
-      'elementInteractions': elementInteractions,
+      // Serialize via ElementInteractionsEnabled so the "enable everything"
+      // sentinel applies the Flutter-aware cssSelectorAllowlist on web instead of
+      // a bare `true` (which would capture no Flutter widgets).
+      'elementInteractions':
+          ElementInteractions.toMapOrBool(const ElementInteractionsEnabled()),
       'pageUrlEnrichment': pageUrlEnrichment,
     };
   }

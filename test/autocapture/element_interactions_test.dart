@@ -8,9 +8,13 @@ void main() {
       expect(ElementInteractions.toMapOrBool(disabled), false);
     });
 
-    test('returns true for ElementInteractionsEnabled()', () {
+    test('returns the Flutter-aware default map for ElementInteractionsEnabled()',
+        () {
       var enabled = ElementInteractionsEnabled();
-      expect(ElementInteractions.toMapOrBool(enabled), true);
+      expect(ElementInteractions.toMapOrBool(enabled), {
+        'cssSelectorAllowlist':
+            ElementInteractionsOptions.defaultCssSelectorAllowlist,
+      });
     });
 
     test('returns a map for ElementInteractionsOptions()', () {

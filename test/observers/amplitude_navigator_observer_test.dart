@@ -213,5 +213,20 @@ void main() {
       expect(() => observer.didPush(pageRoute('/home'), null), returnsNormally);
       verifyNever(mockChannel.invokeMethod('track', any));
     });
+
+    test('a throwing routeFilter never breaks navigation on pop', () {
+      final amplitude =
+          buildAmplitude(const AutocaptureOptions(screenViews: true));
+      final observer = AmplitudeNavigatorObserver(
+        amplitude,
+        routeFilter: (_) => throw Exception('filter boom'),
+      );
+
+      expect(
+        () => observer.didPop(pageRoute('/top'), pageRoute('/below')),
+        returnsNormally,
+      );
+      verifyNever(mockChannel.invokeMethod('track', any));
+    });
   });
 }

@@ -9,7 +9,11 @@ sealed class ElementInteractions {
   static dynamic toMapOrBool(ElementInteractions elementInteractions) {
     return switch (elementInteractions) {
       ElementInteractionsOptions() => elementInteractions.toMap(),
-      ElementInteractionsEnabled() => true,
+      // Serialize as the default options map (not a bare `true`) so the
+      // Flutter-aware cssSelectorAllowlist is applied. A bare `true` would keep
+      // the Browser SDK's tag-based default, which never matches Flutter's
+      // semantic-role nodes, so "enabled" clicks would capture nothing on web.
+      ElementInteractionsEnabled() => const ElementInteractionsOptions().toMap(),
       ElementInteractionsDisabled() => false,
       Type() => throw UnimplementedError(),
     };
@@ -156,6 +160,11 @@ class ElementInteractionsDisabled extends ElementInteractions {
 }
 
 /// Enable autocapture ElementInteractions.
+///
+/// Enables click tracking with the Flutter-aware
+/// [ElementInteractionsOptions.defaultCssSelectorAllowlist], so clicks on
+/// Flutter web widgets are captured. Use [ElementInteractionsOptions] if you need
+/// to customize the allowlist or the other options.
 ///
 /// Example usage:
 ///

@@ -153,10 +153,20 @@ class AmplitudeNavigatorObserver extends NavigatorObserver {
     super.didPop(route, previousRoute);
     // Only treat a pop as a screen change when a page-level route was popped.
     // Dismissing a dialog, popup, or bottom sheet (a non-page route) does not
-    // change the visible screen — the underlying page was already reported — so
+    // change the visible screen (the underlying page was already reported), so
     // popping one must not re-report `previousRoute`.
-    if (routeFilter(route)) {
-      _trackScreenView(previousRoute);
+    //
+    // routeFilter is evaluated here too, so guard it the same way
+    // _trackScreenView does: a throwing custom routeFilter must never interrupt
+    // the navigator's pop handling.
+    try {
+      if (!routeFilter(route)) {
+        return;
+      }
+    } catch (error, stackTrace) {
+      _onTrackError(error, stackTrace);
+      return;
     }
+    _trackScreenView(previousRoute);
   }
 }
