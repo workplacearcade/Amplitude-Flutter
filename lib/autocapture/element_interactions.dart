@@ -22,6 +22,14 @@ sealed class ElementInteractions {
 /// Browser SDK. Requires Browser SDK >= 2.10.0.
 /// Refer to [docs](https://amplitude.com/docs/sdks/analytics/browser/browser-sdk-2#autocapture) for more details.
 ///
+/// **Flutter web requirement.** DOM-based capture only sees real DOM nodes.
+/// With the default CanvasKit renderer the UI is painted to a `<canvas>`, so the
+/// Browser SDK can only observe elements from Flutter's accessibility semantics
+/// tree, which must be enabled globally (e.g. via
+/// `SemanticsBinding.instance.ensureSemantics()`). Enabling semantics app-wide
+/// has a runtime cost and known side effects, so it is not recommended unless
+/// your app already relies on semantics.
+///
 /// Example usage:
 ///
 ///```dart
@@ -39,10 +47,44 @@ sealed class ElementInteractions {
 /// );
 /// ```
 class ElementInteractionsOptions extends ElementInteractions {
+  /// Default `cssSelectorAllowlist` used when one is not supplied.
+  ///
+  /// Flutter web renders interactive widgets into the accessibility semantics
+  /// tree as `<flt-semantics>` nodes carrying ARIA roles rather than native HTML
+  /// tags, so the Browser SDK's tag-based defaults (`a`, `button`, `input`, …)
+  /// never match Flutter UI and nothing is captured. This list mirrors the
+  /// common interactive tags and adds the semantic-role selectors Flutter emits
+  /// so opting in captures Flutter widgets out of the box. Override
+  /// [cssSelectorAllowlist] to tune it (pass `cssSelectorAllowlist: null` to fall
+  /// back to the Browser SDK's own default instead).
+  static const List<String> defaultCssSelectorAllowlist = [
+    // Standard interactive HTML elements (Browser SDK defaults).
+    'a',
+    'button',
+    'input',
+    'select',
+    'textarea',
+    'label',
+    // Flutter accessibility-tree roles.
+    '[role="button"]',
+    '[role="link"]',
+    '[role="checkbox"]',
+    '[role="radio"]',
+    '[role="switch"]',
+    '[role="tab"]',
+    '[role="menuitem"]',
+    '[role="textbox"]',
+  ];
+
   /// Web specific
   ///
-  /// List of CSS selectors that gate which elements are tracked. When set, only
-  /// elements matching a selector generate `[Amplitude] Element Clicked` events.
+  /// List of CSS selectors that gate which elements are tracked. Only elements
+  /// matching a selector generate `[Amplitude] Element Clicked` events.
+  ///
+  /// Defaults to [defaultCssSelectorAllowlist], which includes Flutter semantic
+  /// roles so clicks on Flutter widgets are captured on web. Pass an explicit
+  /// list to replace it, or `null` to omit the key entirely and use the Browser
+  /// SDK's own default allowlist.
   final List<String>? cssSelectorAllowlist;
 
   /// Web specific
@@ -71,7 +113,7 @@ class ElementInteractionsOptions extends ElementInteractions {
   ///
   /// See [docs](https://amplitude.com/docs/sdks/analytics/browser/browser-sdk-2#autocapture) for more information.
   const ElementInteractionsOptions({
-    this.cssSelectorAllowlist,
+    this.cssSelectorAllowlist = defaultCssSelectorAllowlist,
     this.actionClickAllowlist,
     this.dataAttributePrefix,
     this.pageUrlAllowlist,

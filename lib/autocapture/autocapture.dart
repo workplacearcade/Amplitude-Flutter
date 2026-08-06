@@ -71,6 +71,14 @@ class AutocaptureOptions extends Autocapture {
   ///
   /// Use [PageViewsOptions] for granular control, or [PageViewsEnabled]/
   /// [PageViewsDisabled] to toggle it.
+  ///
+  /// Defaults to [PageViewsDisabled]. On Flutter, navigation is captured
+  /// cross-platform by [AmplitudeNavigatorObserver] via [screenViews]
+  /// (`[Amplitude] Screen Viewed`), which is consistent with iOS and Android;
+  /// the web-only, URL-based page view autocapture is therefore opt-in so a
+  /// navigation is not double-counted as both a screen view and a page view.
+  /// Enable it (e.g. `pageViews: PageViewsOptions()`) if you also want the
+  /// Browser SDK's `[Amplitude] Page Viewed` events.
   final PageViews pageViews;
 
   /// Mobile (iOS and Android) specific
@@ -103,11 +111,21 @@ class AutocaptureOptions extends Autocapture {
   /// Exposed as a simple on/off toggle; unlike [elementInteractions], the
   /// Browser SDK's object configuration for form interactions is not surfaced by
   /// this Flutter SDK.
+  ///
+  /// Defaults to `false`. This is DOM-based capture and carries the Flutter web
+  /// semantics requirement described on [elementInteractions]: text fields are
+  /// only captured when they render as real `<input>`/`<form>` nodes in the
+  /// accessibility tree.
   final bool formInteractions;
 
   /// Web specific
   ///
   /// Whether to capture file download events (`[Amplitude] File Downloaded`).
+  ///
+  /// Defaults to `false`. This is DOM-based capture and carries the Flutter web
+  /// semantics requirement described on [elementInteractions]; downloads are only
+  /// detected for real `<a download>` anchors, which Flutter web apps rarely
+  /// render.
   final bool fileDownloads;
 
   /// Web specific
@@ -115,7 +133,20 @@ class AutocaptureOptions extends Autocapture {
   /// Configures element interaction (click) tracking using `ElementInteractions`. See [docs](https://amplitude.com/docs/sdks/analytics/browser/browser-sdk-2#autocapture)
   /// for more information. Set to `ElementInteractionsDisabled()` to disable tracking clicks.
   ///
-  /// Disabled by default to match the Browser SDK default.
+  /// Disabled by default.
+  ///
+  /// > **Flutter web requirement.** DOM-based capture (this option,
+  /// > [formInteractions], and [fileDownloads]) only sees real DOM nodes. With
+  /// > the default CanvasKit renderer the UI is painted to a `<canvas>`, so the
+  /// > Browser SDK can only observe elements from Flutter's accessibility
+  /// > semantics tree, which must be enabled globally (e.g. via
+  /// > `SemanticsBinding.instance.ensureSemantics()`). Enabling semantics
+  /// > app-wide has a runtime cost and known side effects, so it is not
+  /// > recommended unless your app already relies on semantics. Semantic widgets
+  /// > render as `<flt-semantics>` nodes carrying ARIA roles rather than native
+  /// > HTML tags, so [ElementInteractionsOptions] defaults its
+  /// > `cssSelectorAllowlist` to a Flutter-aware set
+  /// > ([ElementInteractionsOptions.defaultCssSelectorAllowlist]).
   ///
   /// Can be either `ElementInteractionsOptions`, `ElementInteractionsEnabled` or
   /// `ElementInteractionsDisabled`.
@@ -125,19 +156,23 @@ class AutocaptureOptions extends Autocapture {
   ///
   /// Whether to enrich events with page URL information (previous page, page
   /// type) and enrich page view events with additional URL data.
+  ///
+  /// Defaults to `false`. Requires Browser SDK >= 2.29.0 (older versions ignore
+  /// the option). Enable it alongside [screenViews]/[pageViews] to attach
+  /// page-URL properties to navigation events.
   final bool pageUrlEnrichment;
 
   const AutocaptureOptions({
     this.attribution = const AttributionOptions(),
     this.sessions = true,
-    this.pageViews = const PageViewsOptions(),
+    this.pageViews = const PageViewsDisabled(),
     this.appLifecycles = false,
     this.deepLinks = false,
     this.screenViews = false,
-    this.formInteractions = true,
-    this.fileDownloads = true,
+    this.formInteractions = false,
+    this.fileDownloads = false,
     this.elementInteractions = const ElementInteractionsDisabled(),
-    this.pageUrlEnrichment = true,
+    this.pageUrlEnrichment = false,
   });
 
   Map<String, dynamic> toMap() {

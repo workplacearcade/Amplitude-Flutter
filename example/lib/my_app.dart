@@ -3,6 +3,7 @@ import 'dart:async';
 // ignore_for_file: depend_on_referenced_packages
 import 'package:amplitude_flutter/amplitude.dart';
 import 'package:amplitude_flutter/autocapture/autocapture.dart';
+import 'package:amplitude_flutter/autocapture/element_interactions.dart';
 import 'package:amplitude_flutter/autocapture/page_views.dart';
 import 'package:amplitude_flutter/configuration.dart';
 import 'package:amplitude_flutter/constants.dart';
@@ -51,11 +52,19 @@ class _MyAppState extends State<MyApp> {
         // platform. On web we disable pageViews so a navigation is reported once
         // (as `[Amplitude] Screen Viewed`) instead of also as
         // `[Amplitude] Page Viewed`.
+        //
+        // The web autocapture options below are all opt-in. The DOM-based ones
+        // (elementInteractions, formInteractions) require the semantics tree,
+        // which main() enables on web. ElementInteractionsOptions() ships
+        // Flutter-aware selectors so clicks on Flutter widgets are captured.
         autocapture: const AutocaptureOptions(
           screenViews: true,
           pageViews: PageViewsDisabled(),
           appLifecycles: true,
           deepLinks: true,
+          elementInteractions: ElementInteractionsOptions(),
+          formInteractions: true,
+          pageUrlEnrichment: true,
         )));
     _navigatorObserver = AmplitudeNavigatorObserver(analytics);
     initAnalytics();

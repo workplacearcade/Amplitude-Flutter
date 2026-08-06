@@ -100,10 +100,12 @@ void main() {
       expect(autocapture.containsKey('appLifecycles'), false);
       expect(autocapture.containsKey('deepLinks'), false);
       expect(autocapture.containsKey('screenViews'), false);
-      expect(autocapture['formInteractions'], true);
-      expect(autocapture['fileDownloads'], true);
+      // Web capture options are all opt-in (off by default).
+      expect(autocapture['pageViews'], false);
+      expect(autocapture['formInteractions'], false);
+      expect(autocapture['fileDownloads'], false);
       expect(autocapture['elementInteractions'], false);
-      expect(autocapture['pageUrlEnrichment'], true);
+      expect(autocapture['pageUrlEnrichment'], false);
     });
   });
 }

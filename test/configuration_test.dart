@@ -181,7 +181,12 @@ void main() {
         expect(ac.appLifecycles, false);
         expect(ac.deepLinks, false);
         expect(ac.attribution, isA<AttributionOptions>());
-        expect(ac.pageViews, isA<PageViewsOptions>());
+        // Web capture is opt-in: with neither field passed the default
+        // AutocaptureOptions is used, whose web options are all off.
+        expect(ac.pageViews, isA<PageViewsDisabled>());
+        expect(ac.formInteractions, false);
+        expect(ac.fileDownloads, false);
+        expect(ac.pageUrlEnrichment, false);
       });
 
       test('AutocaptureDisabled is preserved (not overridden by defaultTracking)', () {

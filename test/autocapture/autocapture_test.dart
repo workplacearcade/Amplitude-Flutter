@@ -38,11 +38,11 @@ void main() {
 
       expect(options.attribution, isA<AttributionOptions>());
       expect(options.sessions, true);
-      expect(options.pageViews, isA<PageViewsOptions>());
-      expect(options.formInteractions, true);
-      expect(options.fileDownloads, true);
+      expect(options.pageViews, isA<PageViewsDisabled>());
+      expect(options.formInteractions, false);
+      expect(options.fileDownloads, false);
       expect(options.elementInteractions, isA<ElementInteractionsDisabled>());
-      expect(options.pageUrlEnrichment, true);
+      expect(options.pageUrlEnrichment, false);
     });
 
     test('appLifecycles, deepLinks, and screenViews default to false', () {
@@ -59,14 +59,14 @@ void main() {
 
       expect(map['sessions'], true);
       expect(map['attribution'], isA<Map<String, dynamic>>());
-      expect(map['pageViews'], isA<Map<String, dynamic>>());
+      expect(map['pageViews'], false);
       expect(map['appLifecycles'], false);
       expect(map['deepLinks'], false);
       expect(map['screenViews'], false);
-      expect(map['formInteractions'], true);
-      expect(map['fileDownloads'], true);
+      expect(map['formInteractions'], false);
+      expect(map['fileDownloads'], false);
       expect(map['elementInteractions'], false);
-      expect(map['pageUrlEnrichment'], true);
+      expect(map['pageUrlEnrichment'], false);
     });
 
     test('toMap handles custom values', () {

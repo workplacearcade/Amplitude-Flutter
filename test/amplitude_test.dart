@@ -101,14 +101,14 @@ void main() {
         'initialEmptyValue': 'EMPTY',
         'resetSessionOnNewCampaign': false
       },
-      'pageViews': {'trackHistoryChanges': 'all', 'eventType': ''},
+      'pageViews': false,
       'appLifecycles': false,
       'deepLinks': false,
       'screenViews': false,
-      'formInteractions': true,
-      'fileDownloads': true,
+      'formInteractions': false,
+      'fileDownloads': false,
       'elementInteractions': false,
-      'pageUrlEnrichment': true,
+      'pageUrlEnrichment': false,
     },
     // This field doesn't belong to Configuration
     // Pass it for FlutterLibraryPlugin

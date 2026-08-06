@@ -27,13 +27,14 @@ final analytics = Amplitude(Configuration(
   apiKey: 'API_KEY',
   autocapture: AutocaptureOptions(
     sessions: true,
-    // Web
+    // Web: all default off; opt in explicitly. The DOM-based options
+    // (forms/files/clicks) require Flutter's semantics tree, see "Web setup".
     attribution: AttributionOptions(),
-    pageViews: PageViewsOptions(),
-    formInteractions: true,
-    fileDownloads: true,
+    pageViews: PageViewsOptions(),                // off by default
+    formInteractions: true,                       // off by default
+    fileDownloads: true,                          // off by default
     elementInteractions: ElementInteractionsOptions(), // clicks; off by default
-    pageUrlEnrichment: true,
+    pageUrlEnrichment: true,                      // off by default; needs SDK >= 2.29.0
     // Mobile (iOS/Android)
     appLifecycles: true, // installs, upgrades, opens
     deepLinks: true,     // Android
@@ -44,11 +45,18 @@ final analytics = Amplitude(Configuration(
 
 Each platform ignores the options that don't apply to it.
 
-> **Upgrading:** on web, `formInteractions` and `fileDownloads` are now captured
-> by default (this SDK previously disabled them). After upgrading, web apps begin
-> emitting `[Amplitude] Form Started`/`Submitted` and `[Amplitude] File Downloaded`
-> events — set those options to `false` to opt out. `elementInteractions` (click
-> tracking) remains opt-in.
+> **Web defaults are conservative.** Every web autocapture option
+> (`pageViews`, `formInteractions`, `fileDownloads`, `elementInteractions`,
+> `pageUrlEnrichment`) is **off by default** and must be opted into. The DOM-based
+> options (`formInteractions`, `fileDownloads`, `elementInteractions`) also
+> require the accessibility semantics tree to be enabled; see [Web setup](#web-setup).
+> Use `AutocaptureEnabled()` to turn every supported option on at once.
+>
+> **Upgrading:** `pageViews` previously defaulted on; it now defaults off, since
+> Flutter navigation is captured cross-platform by `screenViews` /
+> `AmplitudeNavigatorObserver` (see [Screen views](#screen-views)). Set
+> `pageViews: PageViewsOptions()` to keep the Browser SDK's URL-based
+> `[Amplitude] Page Viewed` events.
 
 ### Web setup
 
@@ -64,14 +72,33 @@ the browser will refuse to load it. The SRI hash is the base64 sha384 of the
 *decoded* JS (the CDN serves it gzip-encoded):
 `curl -s https://cdn.amplitude.com/libs/analytics-browser-<version>-min.js.gz | gzcat | openssl dgst -sha384 -binary | openssl base64 -A`
 
-On Flutter web, the Browser SDK's DOM-based capture (`elementInteractions`,
-`formInteractions`, `fileDownloads`) only sees real DOM elements. With the
-default CanvasKit renderer the UI is painted to a canvas, so these events fire
-only for DOM the app actually creates — e.g. the accessibility semantics tree
-(when enabled by the user or via `SemanticsBinding.ensureSemantics()`), where
-text fields render as real `<input>`/`<form>` elements and are captured.
-Route/screen tracking is unaffected (use the `AmplitudeNavigatorObserver`
-below).
+#### DOM-based capture on Flutter web
+
+`elementInteractions`, `formInteractions`, and `fileDownloads` are implemented by
+the Browser SDK, which only sees **real DOM elements**. With the default CanvasKit
+renderer the UI is painted to a `<canvas>`, so the only DOM the SDK can observe is
+Flutter's **accessibility semantics tree**. Two things are required for these
+options to capture anything:
+
+1. **Enable the semantics tree globally.** It is off until something turns it on
+   (a screen reader, or an explicit `SemanticsBinding.instance.ensureSemantics()`
+   early in `main()`). Once enabled, semantic widgets render as `<flt-semantics>`
+   nodes and text fields become real `<input>`/`<form>` elements the SDK can see.
+
+   > ⚠️ Enabling semantics app-wide has a runtime/performance cost and some known
+   > side effects. It is not recommended unless your app already relies on
+   > semantics, so weigh this before enabling DOM-based web capture.
+
+2. **Match Flutter's semantic roles.** Flutter emits ARIA roles (e.g.
+   `role="button"`, `role="link"`) rather than native `<button>`/`<a>` tags, so
+   the Browser SDK's tag-based default `cssSelectorAllowlist` never matches
+   Flutter UI. `ElementInteractionsOptions()` defaults its `cssSelectorAllowlist`
+   to a Flutter-aware set (`ElementInteractionsOptions.defaultCssSelectorAllowlist`,
+   which adds `[role="button"]`, `[role="link"]`, etc.) so opting in captures
+   Flutter widgets out of the box. Pass your own list to extend or replace it.
+
+Route/screen tracking does **not** depend on any of this; use the
+`AmplitudeNavigatorObserver` below.
 
 ### Screen views
 
@@ -105,8 +132,9 @@ not necessarily change the browser URL, so the observer (route-based) captures
 navigations the Browser SDK's URL-based `pageViews` would miss. If you enable
 both, a URL-changing navigation is recorded as both `[Amplitude] Page Viewed` and
 `[Amplitude] Screen Viewed`; to record a single event, disable the one you don't
-want — typically `pageViews: PageViewsDisabled()`, keeping `pageUrlEnrichment`
-enabled to retain page-URL properties.
+want. `pageViews` already defaults off, so screen views are the single navigation
+event unless you opt back into `pageViews`. Enable `pageUrlEnrichment: true`
+(Browser SDK >= 2.29.0) to attach page-URL properties to your navigation events.
 
 ## Compatibility
 

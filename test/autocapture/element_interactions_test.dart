@@ -23,10 +23,28 @@ void main() {
   group('ElementInteractionsOptions', () {
     test('default values should be correctly set', () {
       final options = ElementInteractionsOptions();
-      expect(options.cssSelectorAllowlist, isNull);
+      expect(options.cssSelectorAllowlist,
+          ElementInteractionsOptions.defaultCssSelectorAllowlist);
       expect(options.actionClickAllowlist, isNull);
       expect(options.dataAttributePrefix, isNull);
       expect(options.pageUrlAllowlist, isNull);
+    });
+
+    test('default cssSelectorAllowlist includes Flutter semantic roles', () {
+      expect(ElementInteractionsOptions.defaultCssSelectorAllowlist,
+          contains('[role="button"]'));
+      expect(ElementInteractionsOptions.defaultCssSelectorAllowlist,
+          contains('[role="link"]'));
+      // Standard interactive tags are retained too.
+      expect(ElementInteractionsOptions.defaultCssSelectorAllowlist,
+          contains('button'));
+    });
+
+    test('explicit null cssSelectorAllowlist falls back to Browser SDK default',
+        () {
+      final options = ElementInteractionsOptions(cssSelectorAllowlist: null);
+      expect(options.cssSelectorAllowlist, isNull);
+      expect(options.toMap().containsKey('cssSelectorAllowlist'), false);
     });
 
     test('custom values should be correctly set', () {
@@ -42,8 +60,18 @@ void main() {
       expect(options.pageUrlAllowlist, ['https://example.com']);
     });
 
-    test('toMap omits null values', () {
+    test('toMap includes the default cssSelectorAllowlist', () {
       final options = ElementInteractionsOptions();
+      final map = options.toMap();
+      expect(map['cssSelectorAllowlist'],
+          ElementInteractionsOptions.defaultCssSelectorAllowlist);
+      expect(map.containsKey('actionClickAllowlist'), false);
+      expect(map.containsKey('dataAttributePrefix'), false);
+      expect(map.containsKey('pageUrlAllowlist'), false);
+    });
+
+    test('toMap omits all-null values', () {
+      final options = ElementInteractionsOptions(cssSelectorAllowlist: null);
       final map = options.toMap();
       expect(map, isEmpty);
     });
