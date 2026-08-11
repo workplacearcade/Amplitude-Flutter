@@ -50,8 +50,8 @@ void main() {
       'deepLinks': false,
       'attribution': true,
       'pageViews': true,
-      'formInteractions': true,
-      'fileDownloads': true,
+      'formInteractions': false,
+      'fileDownloads': false,
     },
     'trackingOptions': {
       'ipAddress': true,

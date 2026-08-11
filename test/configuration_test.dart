@@ -173,6 +173,22 @@ void main() {
         expect(serialized['fileDownloads'], false);
       });
 
+      test('defaultTracking with only mobile fields does not enable web capture',
+          () {
+        final config = Configuration(
+          apiKey: 'k',
+          defaultTracking: const DefaultTrackingOptions(appLifecycles: true),
+        );
+
+        final ac = config.autocapture as AutocaptureOptions;
+        expect(ac.appLifecycles, true);
+        // Web DOM-based capture stays opt-in: DefaultTrackingOptions now defaults
+        // formInteractions/fileDownloads to false, so the bridge doesn't enable
+        // them for callers that only set mobile fields.
+        expect(ac.formInteractions, false);
+        expect(ac.fileDownloads, false);
+      });
+
       test('defaults: no autocapture, no defaultTracking → minimal autocapture', () {
         final config = Configuration(apiKey: 'k');
 
