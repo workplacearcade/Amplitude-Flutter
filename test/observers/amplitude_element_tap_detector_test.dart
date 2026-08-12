@@ -189,6 +189,54 @@ void main() {
           capturedEventProperties()[elementTargetTextProperty], 'Submit order');
     });
 
+    testWidgets("a nested control's label does not become the target text",
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        ListTile(
+          onTap: () {},
+          title: const Text('Wi-Fi'),
+          trailing: IconButton(
+            onPressed: () {},
+            tooltip: 'Delete',
+            icon: const Icon(Icons.delete),
+          ),
+        ),
+      ));
+
+      await tester.tap(find.text('Wi-Fi'));
+      await tester.pump();
+
+      final props = capturedEventProperties();
+      expect(props[elementTargetClassProperty], 'ListTile');
+      expect(props[elementTargetTextProperty], 'Wi-Fi');
+    });
+
+    testWidgets('tapping the nested control itself reports its own label',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        ListTile(
+          onTap: () {},
+          title: const Text('Wi-Fi'),
+          trailing: IconButton(
+            onPressed: () {},
+            tooltip: 'Delete',
+            icon: const Icon(Icons.delete),
+          ),
+        ),
+      ));
+
+      await tester.tap(find.byIcon(Icons.delete));
+      await tester.pump();
+
+      final props = capturedEventProperties();
+      expect(props[elementTargetClassProperty], 'IconButton');
+      expect(props[elementTargetTextProperty], 'Delete');
+    });
+
     testWidgets('a ValueKey is reported as the target resource',
         (tester) async {
       final amplitude = buildAmplitude();

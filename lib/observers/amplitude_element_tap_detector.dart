@@ -93,7 +93,9 @@ String? defaultScreenNameProvider() =>
 /// * `[Amplitude] Action` — always `touch`.
 /// * `[Amplitude] Target Class` — the widget's runtime type.
 /// * `[Amplitude] Target Text` — the widget's `Semantics` label, `Tooltip`
-///   message, or descendant `Text` content (first available, in that order).
+///   message, or descendant `Text` content (first available, in that
+///   order), ignoring nested interactive widgets the tap did not pass
+///   through.
 /// * `[Amplitude] Target Resource` — the widget's [ValueKey] value, if any.
 /// * `[Amplitude] Hierarchy` — up to 10 non-private ancestor widget types.
 /// * `[Amplitude] Screen Name` — from [screenNameProvider]; by default the
@@ -186,11 +188,12 @@ class _AmplitudeElementTapDetectorState
     // resolving or tracking the target is swallowed and surfaced only in
     // debug builds.
     try {
-      final target = _findTarget(event.position, _hitPath(event));
+      final hitPath = _hitPath(event);
+      final target = _findTarget(event.position, hitPath);
       if (target == null) {
         return;
       }
-      _trackTap(target);
+      _trackTap(target, hitPath);
     } catch (error, stackTrace) {
       _onTrackError(error, stackTrace);
     }
@@ -345,7 +348,13 @@ class _AmplitudeElementTapDetectorState
 
   /// Derives a human-readable label for [target]: its `Semantics` label,
   /// `Tooltip` message, or descendant `Text` content, in that order.
-  String? _describeTarget(Element target) {
+  ///
+  /// Nested interactive widgets the tap did not pass through are excluded:
+  /// they are tap targets in their own right, so their labels (a trailing
+  /// `IconButton`'s tooltip inside a `ListTile`, say) describe them and not
+  /// [target]. The target's own internals stay included, because the render
+  /// objects a tap travels through are always on [hitPath].
+  String? _describeTarget(Element target, Set<RenderObject> hitPath) {
     String? semanticsLabel;
     String? tooltip;
     String? text;
@@ -357,6 +366,11 @@ class _AmplitudeElementTapDetectorState
       }
       visited++;
       final w = element.widget;
+      if (!identical(element, target) &&
+          _targetRank(w) > 0 &&
+          !_isOnHitPath(element, hitPath)) {
+        return;
+      }
       if (w is Semantics) {
         final label = w.properties.label;
         if (label != null && label.isNotEmpty) {
@@ -423,9 +437,9 @@ class _AmplitudeElementTapDetectorState
     return names;
   }
 
-  void _trackTap(Element target) {
+  void _trackTap(Element target, Set<RenderObject> hitPath) {
     final targetWidget = target.widget;
-    final targetText = _describeTarget(target);
+    final targetText = _describeTarget(target, hitPath);
     final key = targetWidget.key;
     final resource = key is ValueKey ? key.value?.toString() : null;
     final screenName = widget.screenNameProvider?.call();
