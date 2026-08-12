@@ -303,6 +303,75 @@ void main() {
       verifyNever(mockChannel.invokeMethod('track', any));
     });
 
+    testWidgets('a widget behind a dialog barrier is not reported',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(AmplitudeElementTapDetector(
+        amplitude: amplitude,
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Align(
+                alignment: Alignment.bottomCenter,
+                child: ElevatedButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const AlertDialog(title: Text('Dialog')),
+                  ),
+                  child: const Text('Covered'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+
+      final buttonCenter = tester.getCenter(find.text('Covered'));
+      await tester.tapAt(buttonCenter);
+      await tester.pumpAndSettle();
+      clearInteractions(mockChannel);
+
+      // The dialog's barrier now covers the button. Its geometry still
+      // contains the tap position, but the tap can only reach the barrier.
+      await tester.tapAt(buttonCenter);
+      await tester.pump();
+
+      verifyNever(mockChannel.invokeMethod('track', any));
+    });
+
+    testWidgets('a button inside IgnorePointer is not reported',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        IgnorePointer(
+          child: ElevatedButton(onPressed: () {}, child: const Text('Ignored')),
+        ),
+      ));
+
+      await tester.tapAt(tester.getCenter(find.text('Ignored')));
+      await tester.pump();
+
+      verifyNever(mockChannel.invokeMethod('track', any));
+    });
+
+    testWidgets('a button inside AbsorbPointer is not reported',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        AbsorbPointer(
+          child:
+              ElevatedButton(onPressed: () {}, child: const Text('Absorbed')),
+        ),
+      ));
+
+      await tester.tapAt(tester.getCenter(find.text('Absorbed')));
+      await tester.pump();
+
+      verifyNever(mockChannel.invokeMethod('track', any));
+    });
+
     testWidgets('taps on non-interactive widgets are not tracked',
         (tester) async {
       final amplitude = buildAmplitude();

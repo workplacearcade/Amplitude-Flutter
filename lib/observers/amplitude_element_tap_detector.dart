@@ -82,9 +82,12 @@ String? defaultScreenNameProvider() =>
 /// position and reports the deepest interactive widget hit. Concrete
 /// controls (buttons, tiles, toggles) take precedence over the generic
 /// gesture handlers they are built from, so an `ElevatedButton` is reported
-/// as `ElevatedButton`, not as its internal `InkWell`. Mounted-but-hidden
-/// subtrees (`Offstage`, invisible `Visibility`, and therefore the inactive
-/// children of a keep-alive `IndexedStack`) are never reported.
+/// as `ElevatedButton`, not as its internal `InkWell`. Only widgets on
+/// Flutter's own hit-test path for the tap are eligible: widgets occluded
+/// by a dialog's barrier, inside an `IgnorePointer` or `AbsorbPointer`, and
+/// mounted-but-hidden subtrees (`Offstage`, invisible `Visibility`, and
+/// therefore the inactive children of a keep-alive `IndexedStack`) are
+/// never reported.
 ///
 /// Reported properties:
 /// * `[Amplitude] Action` — always `touch`.
@@ -183,7 +186,7 @@ class _AmplitudeElementTapDetectorState
     // resolving or tracking the target is swallowed and surfaced only in
     // debug builds.
     try {
-      final target = _findTarget(event.position);
+      final target = _findTarget(event.position, _hitPath(event));
       if (target == null) {
         return;
       }
@@ -193,20 +196,34 @@ class _AmplitudeElementTapDetectorState
     }
   }
 
+  /// The render objects Flutter's own hit test visits for [event]'s
+  /// position: the ground truth for which widgets could have received the
+  /// tap. Overlays (a dialog's barrier), [IgnorePointer], [AbsorbPointer],
+  /// and hidden subtrees (an inactive [IndexedStack] child, [Offstage]) all
+  /// keep their contents off this path.
+  Set<RenderObject> _hitPath(PointerUpEvent event) {
+    final result = HitTestResult();
+    WidgetsBinding.instance.hitTestInView(result, event.position, event.viewId);
+    return result.path
+        .map((entry) => entry.target)
+        .whereType<RenderObject>()
+        .toSet();
+  }
+
   /// Walks the element tree along [position] and returns the deepest
   /// interactive element hit, preferring concrete controls over the generic
-  /// gesture handlers they are built from.
-  Element? _findTarget(Offset position) {
+  /// gesture handlers they are built from. Only elements whose render
+  /// object is on [hitPath] are eligible, so a widget that could not have
+  /// received the tap (occluded, ignored, or hidden) is never reported.
+  Element? _findTarget(Offset position, Set<RenderObject> hitPath) {
     Element? best;
     var bestRank = 0;
 
     void visit(Element element) {
-      // Mounted-but-hidden subtrees keep real geometry but are not painted,
-      // so they must never claim a tap over the visible widget the user
-      // actually saw. This covers keep-alive tab bodies — IndexedStack wraps
-      // inactive children in Visibility.maintain(visible: false) and its
-      // render object hit-tests only the active child — and Offstage widgets
-      // (which keep their incoming size under tight constraints).
+      // Cheap traversal prunes. Mounted-but-hidden subtrees keep real
+      // geometry, so skipping them here avoids descending into subtrees
+      // (inactive keep-alive tab bodies, Offstage widgets) that the hit-path
+      // check below would reject candidate by candidate anyway.
       final w = element.widget;
       if (w is Visibility && !w.visible) {
         return;
@@ -230,7 +247,12 @@ class _AmplitudeElementTapDetectorState
         if (!(widget.targetFilter?.call(w) ?? true)) {
           return; // Vetoed: exclude this widget and its internals entirely.
         }
-        if (rank >= bestRank) {
+        // A candidate must lie on the tap's hit-test path: a widget whose
+        // geometry contains the position can still be occluded (under a
+        // dialog's ModalBarrier) or unreachable (inside IgnorePointer or
+        // AbsorbPointer), and Flutter's hit test is the ground truth for
+        // which widgets the tap could actually reach.
+        if (rank >= bestRank && _isOnHitPath(element, hitPath)) {
           best = element;
           bestRank = rank;
         }
@@ -240,6 +262,14 @@ class _AmplitudeElementTapDetectorState
 
     (context as Element).visitChildElements(visit);
     return best;
+  }
+
+  /// Whether [element] was reachable by this tap according to Flutter's hit
+  /// test. Component widgets (buttons, tiles) have no render object of
+  /// their own; their nearest descendant render object stands in for them.
+  bool _isOnHitPath(Element element, Set<RenderObject> hitPath) {
+    final renderObject = element.renderObject;
+    return renderObject != null && hitPath.contains(renderObject);
   }
 
   /// Ranks how specifically [w] identifies an interaction target.
