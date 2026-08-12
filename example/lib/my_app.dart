@@ -3,7 +3,6 @@ import 'dart:async';
 // ignore_for_file: depend_on_referenced_packages
 import 'package:amplitude_flutter/amplitude.dart';
 import 'package:amplitude_flutter/autocapture/autocapture.dart';
-import 'package:amplitude_flutter/autocapture/element_interactions.dart';
 import 'package:amplitude_flutter/autocapture/page_views.dart';
 import 'package:amplitude_flutter/configuration.dart';
 import 'package:amplitude_flutter/constants.dart';
@@ -54,16 +53,18 @@ class _MyAppState extends State<MyApp> {
         // (as `[Amplitude] Screen Viewed`) instead of also as
         // `[Amplitude] Page Viewed`.
         //
-        // The web autocapture options below are all opt-in. The DOM-based ones
-        // (elementInteractions, formInteractions) require the semantics tree,
-        // which main() enables on web. ElementInteractionsOptions() ships
-        // Flutter-aware selectors so clicks on Flutter widgets are captured.
+        // The web autocapture options below are all opt-in. Element
+        // interactions come from the AmplitudeElementTapDetector wrapping the
+        // app in build(), which works on every platform with the semantics
+        // tree off; the Browser SDK's DOM elementInteractions capture is left
+        // off so a tap on web is reported once, not once per mechanism. The
+        // DOM-based formInteractions capture requires the semantics tree,
+        // which main() enables on web.
         autocapture: const AutocaptureOptions(
           screenViews: true,
           pageViews: PageViewsDisabled(),
           appLifecycles: true,
           deepLinks: true,
-          elementInteractions: ElementInteractionsOptions(),
           formInteractions: true,
           pageUrlEnrichment: true,
         )));
