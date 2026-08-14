@@ -126,6 +126,66 @@ void main() {
       expect(props[elementTargetTextProperty], 'Delete row');
     });
 
+    testWidgets('a CheckboxListTile is reported, not its internals',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        CheckboxListTile(
+          value: false,
+          onChanged: (_) {},
+          title: const Text('Enable Wi-Fi'),
+        ),
+      ));
+
+      await tester.tap(find.text('Enable Wi-Fi'));
+      await tester.pump();
+
+      final props = capturedEventProperties();
+      expect(props[elementTargetClassProperty], 'CheckboxListTile');
+      expect(props[elementTargetTextProperty], 'Enable Wi-Fi');
+    });
+
+    testWidgets('tapping the checkbox itself reports the CheckboxListTile',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        CheckboxListTile(
+          value: false,
+          onChanged: (_) {},
+          title: const Text('Enable Wi-Fi'),
+        ),
+      ));
+
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+
+      final props = capturedEventProperties();
+      expect(props[elementTargetClassProperty], 'CheckboxListTile');
+      expect(props[elementTargetTextProperty], 'Enable Wi-Fi');
+    });
+
+    testWidgets('a SwitchListTile is reported, not its internals',
+        (tester) async {
+      final amplitude = buildAmplitude();
+      await tester.pumpWidget(wrap(
+        amplitude,
+        SwitchListTile(
+          value: false,
+          onChanged: (_) {},
+          title: const Text('Dark mode'),
+        ),
+      ));
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+
+      final props = capturedEventProperties();
+      expect(props[elementTargetClassProperty], 'SwitchListTile');
+      expect(props[elementTargetTextProperty], 'Dark mode');
+    });
+
     testWidgets('sibling containment: the tapped button is reported',
         (tester) async {
       final amplitude = buildAmplitude();

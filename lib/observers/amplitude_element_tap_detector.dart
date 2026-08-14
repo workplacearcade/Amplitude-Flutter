@@ -82,7 +82,9 @@ String? defaultScreenNameProvider() =>
 /// position and reports the deepest interactive widget hit. Concrete
 /// controls (buttons, tiles, toggles) take precedence over the generic
 /// gesture handlers they are built from, so an `ElevatedButton` is reported
-/// as `ElevatedButton`, not as its internal `InkWell`. Only widgets on
+/// as `ElevatedButton`, not as its internal `InkWell`, and a
+/// `CheckboxListTile` is reported as itself, not as the `ListTile` or
+/// `Checkbox` it is built from. Only widgets on
 /// Flutter's own hit-test path for the tap are eligible: widgets occluded
 /// by a dialog's barrier, inside an `IgnorePointer` or `AbsorbPointer`, and
 /// mounted-but-hidden subtrees (`Offstage`, invisible `Visibility`, and
@@ -279,9 +281,11 @@ class _AmplitudeElementTapDetectorState
   ///
   /// Returns 0 for non-interactive widgets. Concrete controls rank above the
   /// generic handlers (`InkResponse`, `GestureDetector`) they are built
-  /// from, so during the deepest-wins descent a control is not displaced by
-  /// its own internals, while a deeper control nested inside another (e.g.
-  /// an `IconButton` inside a `ListTile`) still wins.
+  /// from, and composite controls that build other public controls rank
+  /// above those (`CheckboxListTile` builds a `ListTile` and a `Checkbox`),
+  /// so during the deepest-wins descent a control is not displaced by its
+  /// own internals, while a deeper control nested inside another (e.g. an
+  /// `IconButton` inside a `ListTile`) still wins.
   int _targetRank(Widget w) {
     // Private widgets are framework/library internals (e.g. Material 3's
     // IconButton builds a private ButtonStyleButton subclass). Reporting
@@ -308,10 +312,10 @@ class _AmplitudeElementTapDetectorState
       return (w.onTap != null || w.onLongPress != null) ? 2 : 0;
     }
     if (w is CheckboxListTile) {
-      return w.onChanged != null ? 2 : 0;
+      return w.onChanged != null ? 3 : 0;
     }
     if (w is SwitchListTile) {
-      return w.onChanged != null ? 2 : 0;
+      return w.onChanged != null ? 3 : 0;
     }
     if (w is Checkbox) {
       return w.onChanged != null ? 2 : 0;
