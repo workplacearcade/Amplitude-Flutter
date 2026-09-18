@@ -17,7 +17,12 @@ const String elementInteractedEventType = '[Amplitude] Element Interacted';
 /// Event property key for the interaction kind (always `touch`).
 const String elementActionProperty = '[Amplitude] Action';
 
-/// Event property key for the tapped widget's runtime type.
+/// Event property key for the tapped widget's type.
+///
+/// Carries the runtime type when the build keeps class names, and a stable
+/// role (see [_stableTargetClass]) when the build renames them. The property
+/// is omitted when neither name is usable, so it never reports a symbol that
+/// changes on the next release.
 const String elementTargetClassProperty = '[Amplitude] Target Class';
 
 /// Event property key for the human-readable label of the tapped widget.
@@ -41,6 +46,73 @@ const int _maxHierarchyDepth = 10;
 
 /// Maximum number of elements visited when deriving a target label.
 const int _maxLabelSearchNodes = 256;
+
+/// Probe type used to detect renamed class names. It is private to this
+/// library and never referenced elsewhere, so a build that keeps class names
+/// spells it out in full.
+class _MinificationProbe {}
+
+/// Whether this build renames Dart class names.
+///
+/// `dart2js` renames classes in every Flutter web profile and release build,
+/// and `flutter build --obfuscate` does the same on mobile. `runtimeType`
+/// then returns a short symbol such as `iKa` or `minified:tp`, and the symbol
+/// changes on each compile. A property built from it is unreadable, and it
+/// churns on every release, which silently breaks each saved chart, cohort or
+/// labeled event that filters on it.
+///
+/// Type checks (`is`) survive the rename, so [_stableTargetClass] reports a
+/// role derived from them instead.
+final bool _classNamesAreRenamed =
+    _MinificationProbe().runtimeType.toString() != '_MinificationProbe';
+
+/// A stable, human-readable class name for [w], derived from type checks.
+///
+/// Returns `null` for a widget type the detector does not know. Every widget
+/// [_findTarget] reports ranks above zero in [_targetRank], so a reported
+/// target always resolves here. The order matches [_targetRank], so the two
+/// always agree on what a widget is.
+String? _stableTargetClass(Widget w) {
+  if (w is ButtonStyleButton) return 'ButtonStyleButton';
+  if (w is MaterialButton) return 'MaterialButton';
+  if (w is IconButton) return 'IconButton';
+  if (w is FloatingActionButton) return 'FloatingActionButton';
+  if (w is CupertinoButton) return 'CupertinoButton';
+  if (w is CheckboxListTile) return 'CheckboxListTile';
+  if (w is SwitchListTile) return 'SwitchListTile';
+  if (w is ListTile) return 'ListTile';
+  if (w is Checkbox) return 'Checkbox';
+  if (w is Switch) return 'Switch';
+  if (w is PopupMenuButton) return 'PopupMenuButton';
+  if (w is DropdownButton) return 'DropdownButton';
+  if (w is TextField) return 'TextField';
+  if (w is InkWell) return 'InkWell';
+  if (w is InkResponse) return 'InkResponse';
+  if (w is GestureDetector) return 'GestureDetector';
+  return null;
+}
+
+/// The reported class name for [w].
+///
+/// Prefers the real runtime type, which is the most precise name available.
+/// Falls back to the stable role when this build renames class names, because
+/// the renamed symbol identifies nothing and does not survive the next
+/// release. Returns `null` when neither name is usable, so the caller omits
+/// the property rather than reporting a symbol that churns.
+String? _describeTargetClass(Widget w) {
+  if (!_classNamesAreRenamed) return w.runtimeType.toString();
+  return _stableTargetClass(w);
+}
+
+/// Whether this build renames Dart class names. Test-only view of
+/// [_classNamesAreRenamed].
+@visibleForTesting
+bool get debugClassNamesAreRenamed => _classNamesAreRenamed;
+
+/// The stable role reported for [w] on a build that renames class names.
+/// Test-only view of [_stableTargetClass].
+@visibleForTesting
+String? debugStableTargetClass(Widget w) => _stableTargetClass(w);
 
 /// Decides whether a tapped widget should be reported. Return `false` to
 /// exclude [widget] and everything inside it from reporting; an interactive
@@ -88,11 +160,15 @@ String? defaultScreenNameProvider() =>
 ///
 /// Reported properties:
 /// * `[Amplitude] Action` — always `touch`.
-/// * `[Amplitude] Target Class` — the widget's runtime type.
+/// * `[Amplitude] Target Class` — the widget's runtime type, or a stable
+///   role such as `ButtonStyleButton` when the build renames class names
+///   (`dart2js`, or `--obfuscate`). Omitted when neither name is usable.
 /// * `[Amplitude] Target Text` — the widget's `Semantics` label, `Tooltip`
 ///   message, or descendant `Text` content (first available, in that order).
 /// * `[Amplitude] Target Resource` — the widget's [ValueKey] value, if any.
 /// * `[Amplitude] Hierarchy` — up to 10 non-private ancestor widget types.
+///   A build that renames class names contributes only the recognized
+///   types; the property is omitted when none remain.
 /// * `[Amplitude] Screen Name` — from [screenNameProvider]; by default the
 ///   last screen tracked by an [AmplitudeNavigatorObserver].
 /// * `[Amplitude] Target Source` — always `Flutter`.
@@ -373,9 +449,22 @@ class _AmplitudeElementTapDetectorState
 
   /// Collects up to [_maxHierarchyDepth] non-private widget types from
   /// [target] upward, target first.
+  ///
+  /// A build that renames class names contributes only the types
+  /// [_stableTargetClass] knows. The renamed symbol of an app widget names
+  /// nothing and changes on the next release, and the private-name filter
+  /// below cannot see it either, because a renamed private class no longer
+  /// starts with an underscore.
   List<String> _hierarchy(Element target) {
     final names = <String>[];
     void add(Widget w) {
+      if (_classNamesAreRenamed) {
+        final role = _stableTargetClass(w);
+        if (role != null) {
+          names.add(role);
+        }
+        return;
+      }
       final name = w.runtimeType.toString();
       if (!name.startsWith('_')) {
         names.add(name);
@@ -399,15 +488,17 @@ class _AmplitudeElementTapDetectorState
     final key = targetWidget.key;
     final resource = key is ValueKey ? key.value?.toString() : null;
     final screenName = widget.screenNameProvider?.call();
+    final targetClass = _describeTargetClass(targetWidget);
+    final hierarchy = _hierarchy(target);
 
     final properties = <String, Object?>{
       elementActionProperty: 'touch',
-      elementTargetClassProperty: targetWidget.runtimeType.toString(),
+      if (targetClass != null) elementTargetClassProperty: targetClass,
       if (targetText != null) elementTargetTextProperty: targetText,
       if (resource != null && resource.isNotEmpty)
         elementTargetResourceProperty: resource,
       elementTargetSourceProperty: 'Flutter',
-      elementHierarchyProperty: _hierarchy(target),
+      if (hierarchy.isNotEmpty) elementHierarchyProperty: hierarchy,
       if (screenName != null && screenName.isNotEmpty)
         screenNameProperty: screenName,
       ...?widget.propertiesProvider?.call(),
