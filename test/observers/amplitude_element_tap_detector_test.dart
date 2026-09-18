@@ -3,6 +3,7 @@ import 'package:amplitude_flutter/autocapture/autocapture.dart';
 import 'package:amplitude_flutter/configuration.dart';
 import 'package:amplitude_flutter/observers/amplitude_element_tap_detector.dart';
 import 'package:amplitude_flutter/observers/amplitude_navigator_observer.dart';
+import 'package:flutter/cupertino.dart' show CupertinoButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -529,6 +530,74 @@ void main() {
       await tester.tap(find.text('Go'));
       await tester.pumpAndSettle();
       expect(AmplitudeNavigatorObserver.currentScreenName, '/details');
+    });
+  });
+
+  group('target class on a build that renames class names', () {
+    test('the probe reports no rename on a build that keeps class names', () {
+      // The Dart VM keeps class names. A false positive here would downgrade
+      // every non-web build to the coarser stable role, so pin it.
+      expect(debugClassNamesAreRenamed, isFalse);
+    });
+
+    test('every widget type the detector targets resolves to a stable role',
+        () {
+      // _findTarget only reports widgets _targetRank ranks above zero, so each
+      // of these must resolve. An unresolved type would drop the property on
+      // web instead of naming the control.
+      expect(
+          debugStableTargetClass(
+              ElevatedButton(onPressed: () {}, child: const Text('a'))),
+          'ButtonStyleButton');
+      expect(
+          debugStableTargetClass(
+              TextButton(onPressed: () {}, child: const Text('a'))),
+          'ButtonStyleButton');
+      expect(
+          debugStableTargetClass(
+              IconButton(onPressed: () {}, icon: const Icon(Icons.add))),
+          'IconButton');
+      expect(debugStableTargetClass(FloatingActionButton(onPressed: () {})),
+          'FloatingActionButton');
+      expect(
+          debugStableTargetClass(
+              CupertinoButton(onPressed: () {}, child: const Text('a'))),
+          'CupertinoButton');
+      expect(debugStableTargetClass(const ListTile()), 'ListTile');
+      expect(
+          debugStableTargetClass(
+              CheckboxListTile(value: false, onChanged: (_) {})),
+          'CheckboxListTile');
+      expect(
+          debugStableTargetClass(
+              SwitchListTile(value: false, onChanged: (_) {})),
+          'SwitchListTile');
+      expect(debugStableTargetClass(Checkbox(value: false, onChanged: (_) {})),
+          'Checkbox');
+      expect(debugStableTargetClass(Switch(value: false, onChanged: (_) {})),
+          'Switch');
+      expect(
+          debugStableTargetClass(
+              PopupMenuButton<int>(itemBuilder: (_) => const [])),
+          'PopupMenuButton');
+      expect(debugStableTargetClass(const TextField()), 'TextField');
+      expect(debugStableTargetClass(InkWell(onTap: () {})), 'InkWell');
+      expect(debugStableTargetClass(GestureDetector(onTap: () {})),
+          'GestureDetector');
+    });
+
+    test('a role is reported for a subclass of a known type', () {
+      // dart2js renames an app subclass to a symbol that changes on the next
+      // release. The role keeps the event readable and stable across releases.
+      expect(
+          debugStableTargetClass(
+              FilledButton(onPressed: () {}, child: const Text('a'))),
+          'ButtonStyleButton');
+    });
+
+    test('an unknown widget type resolves to no role', () {
+      expect(debugStableTargetClass(const SizedBox()), isNull);
+      expect(debugStableTargetClass(const Text('a')), isNull);
     });
   });
 }
