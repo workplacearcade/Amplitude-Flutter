@@ -1,3 +1,24 @@
+## [4.7.1](https://github.com/amplitude/Amplitude-Flutter/compare/v4.7.0...v4.7.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* remove autocapture documentation from README ([#315](https://github.com/amplitude/Amplitude-Flutter/issues/315)) ([2a2ab64](https://github.com/amplitude/Amplitude-Flutter/commit/2a2ab64dd6d0f97bd6e957db3b62fa541a3a2b41))
+
+# [4.7.0](https://github.com/amplitude/Amplitude-Flutter/compare/v4.6.2...v4.7.0) (2026-08-11)
+
+
+### Features
+
+* **autocapture:** web click/form/download capture, page-URL enrichment, and mobile screen views ([#309](https://github.com/amplitude/Amplitude-Flutter/issues/309)) ([9fabca2](https://github.com/amplitude/Amplitude-Flutter/commit/9fabca2582593f4b905c125811c12fae253a40f4))
+
+## [4.6.2](https://github.com/amplitude/Amplitude-Flutter/compare/v4.6.1...v4.6.2) (2026-07-24)
+
+
+### Bug Fixes
+
+* **android:** return device ID only after native SDK build completes ([#310](https://github.com/amplitude/Amplitude-Flutter/issues/310)) ([cf5d15f](https://github.com/amplitude/Amplitude-Flutter/commit/cf5d15f1720d38e2ea544fc64d32ef714f356762))
+
 ## [4.6.1](https://github.com/amplitude/Amplitude-Flutter/compare/v4.6.0...v4.6.1) (2026-07-06)
 
 
